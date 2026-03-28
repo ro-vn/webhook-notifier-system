@@ -46,3 +46,11 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/webhooks
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_DATA_REDIS_HOST=redis
+
+  publisher:
+    build: ./publisher
+    depends_on:
+      - kafka
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+

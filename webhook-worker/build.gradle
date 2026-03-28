@@ -3,7 +3,7 @@
  */
 
 plugins {
-    id 'buildlogic.spring-boot-conventions'
+    id 'buildlogic.spring-web-conventions'
     id 'buildlogic.lombok-conventions'
 }
 

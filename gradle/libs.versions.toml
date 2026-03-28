@@ -14,11 +14,11 @@ resilience4j = "2.2.0"
 
 
 [libraries]
+spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "springBoot" }
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot" }
 spring-boot-starter-aop = { module = "org.springframework.boot:spring-boot-starter-aop", version.ref = "springBoot" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa", version.ref = "springBoot" }
 spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis", version.ref = "springBoot" }
-spring-boot-maven-plugin = { module = "org.springframework.boot:spring-boot-maven-plugin", version.ref = "springBoot" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind" }
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commonsText" }

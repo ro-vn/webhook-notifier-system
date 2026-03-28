@@ -18,6 +18,9 @@ dependencies {
         implementation libs.commons.text
     }
 
+    // Jackson (JSON)
+    implementation libs.jackson.databind
+
     // Use JUnit Jupiter for testing.
     testImplementation libs.junit.jupiter
 

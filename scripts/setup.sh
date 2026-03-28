@@ -13,4 +13,8 @@ echo "Waiting for Infrastructure to initialize..."
 sleep 5
 
 echo "Starting Webhook Workers (Scaled to 2 instances for high throughput)..."
-docker-compose up -d --scale webhook-worker=2 webhook-worker
+docker-compose up -d --scale webhook-worker=1 webhook-worker
+
+echo "Starting Mock Publisher to generate events..."
+docker-compose up -d publisher
+
