@@ -21,7 +21,7 @@ public class FairnessEnforcer {
 
     private final RedissonClient redissonClient;
 
-    @Value("${fairness.rate-limit:50}")
+    @Value("${fairness.rate-limit:1000}")
     private int rateLimit;
 
     public FairnessEnforcer(RedissonClient redissonClient) {

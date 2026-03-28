@@ -5,6 +5,7 @@ import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
@@ -17,14 +18,20 @@ import java.util.Map;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.*;
 
 /**
- * Kafka com.rnvo.notifier.consumer configuration.
- * Uses manual acknowledgment (At-Least-Once) and JSON deserialization.
+ * Kafka consumer configuration.
+ * - Manual acknowledgment (At-Least-Once delivery guarantee)
+ * - JSON deserialization for EventPayload
+ * - Virtual-thread executor for listener method dispatch
+ * - Concurrency tuned to match Kafka topic partition count
  */
 @Configuration
 public class KafkaConfig {
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
+
+    @Value("${spring.kafka.listener.concurrency:3}")
+    private int listenerConcurrency;
 
     @Bean
     public ConsumerFactory<String, EventPayload> consumerFactory() {
@@ -50,6 +57,11 @@ public class KafkaConfig {
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+
+        SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("vt-kafka-");
+        executor.setVirtualThreads(true);
+        factory.getContainerProperties().setListenerTaskExecutor(executor);
+
         return factory;
     }
 }

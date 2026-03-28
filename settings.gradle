@@ -11,4 +11,4 @@ plugins {
 }
 
 rootProject.name = 'webhook-notifier-system'
-include 'webhook-worker', 'publisher'
+include 'webhook-worker', 'publisher', 'receiver'

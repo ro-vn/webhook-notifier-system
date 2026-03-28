@@ -45,8 +45,7 @@ public class PublisherRunner implements CommandLineRunner {
 
             // Intersperse small account events
             if (i % SMALL_ACCOUNT_INTERVAL == 0) {
-                String smallPayload = buildPayload("small_account_1", "subscriber.created",
-                        smallAccountCount++);
+                String smallPayload = buildPayload("small_account_1", "subscriber.created", smallAccountCount++);
                 kafkaTemplate.send(TOPIC, "small_account_1", smallPayload);
             }
 

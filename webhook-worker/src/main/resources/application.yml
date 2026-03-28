@@ -2,6 +2,9 @@ server:
   port: 8080
 
 spring:
+  threads:
+    virtual:
+      enabled: true
   datasource:
     url: jdbc:postgresql://localhost:5432/webhooks
     username: username
@@ -35,14 +38,14 @@ spring:
       port: 6379
 
 fairness:
-  rate-limit: 50
+  rate-limit: 5000
 
 resilience4j:
   retry:
     instances:
       webhookRetry:
-        maxAttempts: 5
-        waitDuration: 1s
+        maxAttempts: 3
+        waitDuration: 2s
         enableExponentialBackoff: true
         exponentialBackoffMultiplier: 2
         retryExceptions:
@@ -53,3 +56,4 @@ resilience4j:
 logging:
   level:
     com.rnvo.notifier: INFO
+    resilience4j: INFO

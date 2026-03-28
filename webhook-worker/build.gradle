@@ -22,3 +22,9 @@ dependencies {
 application {
     mainClass = 'com.rnvo.notifier.WebhookWorkerApplication'
 }
+
+tasks.named('bootRun') {
+    // Logs "PinnedThreadsDump" to stdout whenever a virtual thread pins a carrier.
+    // Only for local dev — remove or set to 'short' in production.
+    jvmArgs '-Djdk.tracePinnedThreads=full'
+}

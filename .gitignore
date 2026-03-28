@@ -23,6 +23,9 @@
 hs_err_pid*
 replay_pid*
 
+# MacOS
+.DS_Store
+
 # IntelliJ
 .idea
 
@@ -32,3 +35,4 @@ replay_pid*
 # Project
 .agent
 build
+.worktrees/
