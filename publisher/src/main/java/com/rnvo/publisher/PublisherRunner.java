@@ -25,10 +25,10 @@ public class PublisherRunner implements CommandLineRunner {
     private static final Logger log = LoggerFactory.getLogger(PublisherRunner.class);
     private static final String TOPIC = "events";
 
-    @Value("${PUBLISH_RATE_PER_SEC:10}")
+    @Value("${PUBLISHER_RATE_PER_SECONDS:10}")
     private int publishRatePerSec;
 
-    @Value("${WHALE_ENABLED:false}")
+    @Value("${PUBLISHER_WHALE_ENABLED:false}")
     private boolean whaleEnabled;
 
     @Value("${WHALE_ACCOUNT_ID:whale_account_1}")
@@ -48,12 +48,12 @@ public class PublisherRunner implements CommandLineRunner {
     public void run(String... args) {
         log.info("Starting Open-Loop Publisher: Rate={} msgs/sec, WhaleMode={}", publishRatePerSec, whaleEnabled);
 
-        try (ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor()) {
-            long delayMicros = 1_000_000L / publishRatePerSec;
-            executor.scheduleAtFixedRate(this::publishNext, 0, Math.max(1, delayMicros), TimeUnit.MICROSECONDS);
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
 
-            Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
-        }
+        long delayMicros = 1_000_000L / publishRatePerSec;
+        executor.scheduleAtFixedRate(this::publishNext, 0, Math.max(1, delayMicros), TimeUnit.MICROSECONDS);
+
+        Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
 
     }
 

@@ -33,13 +33,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * Kafka com.rnvo.notifier.consumer that orchestrates the end-to-end webhook delivery pipeline:
- * com.rnvo.notifier.config lookup → fairness check → HTTP dispatch → DLQ on failure.
+ * Consumer for the low-priority lane ('events-low').
+ * Enforces fairness even in the low lane to prevent a single whale from starvation of other 'small' whale accounts.
  */
 @Component
-public class EventConsumer {
+public class LowLaneConsumer {
 
-    private static final Logger log = LoggerFactory.getLogger(EventConsumer.class);
+    private static final Logger log = LoggerFactory.getLogger(LowLaneConsumer.class);
 
     private final WebhookConfigService configService;
     private final DlqService dlqService;
@@ -47,19 +47,20 @@ public class EventConsumer {
     private final ObjectMapper objectMapper;
     private final Executor virtualThreadExecutor;
     private final MeterRegistry meterRegistry;
-    private final Counter retryCounter;
     private final FairnessEnforcer fairnessEnforcer;
     private final KafkaTemplate<String, EventPayload> kafkaTemplate;
+    private final Counter retryCounter;
+    private final Counter fairnessThrottledCounter;
     private final Counter fairnessDivertedCounter;
 
-    public EventConsumer(WebhookConfigService configService,
-                         DlqService dlqService,
-                         HttpDispatcher httpDispatcher,
-                         ObjectMapper objectMapper,
-                         @Qualifier("virtualThreadExecutor") Executor virtualThreadExecutor,
-                         MeterRegistry meterRegistry,
-                         FairnessEnforcer fairnessEnforcer,
-                         KafkaTemplate<String, EventPayload> kafkaTemplate
+    public LowLaneConsumer(WebhookConfigService configService,
+                           DlqService dlqService,
+                           HttpDispatcher httpDispatcher,
+                           ObjectMapper objectMapper,
+                           @Qualifier("virtualThreadExecutor") Executor virtualThreadExecutor,
+                           MeterRegistry meterRegistry,
+                           FairnessEnforcer fairnessEnforcer,
+                           KafkaTemplate<String, EventPayload> kafkaTemplate
     ) {
         this.configService = configService;
         this.dlqService = dlqService;
@@ -69,8 +70,12 @@ public class EventConsumer {
         this.meterRegistry = meterRegistry;
         this.fairnessEnforcer = fairnessEnforcer;
         this.kafkaTemplate = kafkaTemplate;
-        this.retryCounter = Counter.builder("webhook.retry.rate")
-                .description("Number of times an event was sent for retry")
+
+        this.retryCounter = Counter.builder("webhook.lowlane.retry.rate")
+                .description("Number of times an event in low lane was sent for retry")
+                .register(meterRegistry);
+        this.fairnessThrottledCounter = Counter.builder("webhook.lowlane.fairness.throttled")
+                .description("Number of events throttled in low lane due to fairness")
                 .register(meterRegistry);
         this.fairnessDivertedCounter = Counter.builder("webhook.fairness.diverted")
                 .description("Number of events diverted to low lane due to fairness")
@@ -79,57 +84,55 @@ public class EventConsumer {
 
     @RetryableTopic(
             attempts = "4",
-            backoff = @Backoff(delay = 6000, multiplier = 5.0, maxDelay = 1500000), //TODO: 1,5,25mins
+            backoff = @Backoff(delay = 6000, multiplier = 5.0, maxDelay = 1500000),
             topicSuffixingStrategy = TopicSuffixingStrategy.SUFFIX_WITH_DELAY_VALUE,
             dltStrategy = DltStrategy.FAIL_ON_ERROR,
             exclude = {InvalidFormatException.class, SerializationException.class, DeserializationException.class}
     )
-    @KafkaListener(topics = "events", properties = {"max.poll.records:500"}, groupId = "webhook-workers-${HOSTNAME}")
+    @KafkaListener(topics = "events-low", properties = {"max.poll.records:100"}, groupId = "webhook-lowlane-workers-${HOSTNAME}")
     public void onEvent(EventPayload event, Acknowledgment ack, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        log.debug("Received event: account={}, type={} topic={}", event.getAccountId(), event.getEventType(), topic);
+        log.debug("Received low-lane event: account={}, type={} topic={}", event.getAccountId(), event.getEventType(), topic);
         Timer.Sample ackTimerSample = Timer.start(meterRegistry);
 
+        // Event consumer processing logic could be reused
         CompletableFuture.runAsync(() -> {
             Timer.Sample processingSample = Timer.start(meterRegistry);
             try {
-                // Check if account is a whale and divert to low lane
                 if (!fairnessEnforcer.isAllowed(event.getAccountId())) {
-                    log.info("Diverting event {} from topic {} for account {} to low lane", event.getEventId(), topic, event.getAccountId());
+                    log.warn("Account {} still exceeding limit in low lane. Diverting event {} from topic {} to low lane", event.getAccountId(), event.getEventId(), topic);
                     kafkaTemplate.send("events-low", event.getAccountId(), event);
+
                     fairnessDivertedCounter.increment();
-                    processingSample.stop(meterRegistry.timer("webhook.worker.processing", "outcome", "diverted"));
-                    return;
+                    processingSample.stop(meterRegistry.timer("webhook.lowlane.processing", "outcome", "diverted"));
+                    fairnessThrottledCounter.increment();
+                    throw new RuntimeException("Fairness limit exceeded in low lane for account: " + event.getAccountId());
                 }
 
                 Optional<WebhookConfig> config = configService.getConfig(event.getAccountId(), event.getEventType());
                 if (config.isEmpty() || !config.get().getIsActive()) {
                     log.debug("No active config for account={}, event={}. Skipping.", event.getAccountId(), event.getEventType());
-
-                    ackTimerSample.stop(meterRegistry.timer("webhook.ack.latency"));
-                    processingSample.stop(meterRegistry.timer("webhook.worker.processing", "outcome", "skipped"));
+                    ackTimerSample.stop(meterRegistry.timer("webhook.lowlane.ack.latency"));
+                    processingSample.stop(meterRegistry.timer("webhook.lowlane.worker.processing", "outcome", "skipped"));
                     return;
                 }
 
                 String payload = objectMapper.writeValueAsString(event);
                 httpDispatcher.dispatch(config.get().getTargetUrl(), payload);
-                log.info("Event {} from topic {} processed successfully", event.getEventId(), topic);
+                log.info("Low-lane event {} from topic {} processed successfully", event.getEventId(), topic);
 
-                ackTimerSample.stop(meterRegistry.timer("webhook.ack.latency"));
-                processingSample.stop(meterRegistry.timer("webhook.worker.processing", "outcome", "success"));
+                ackTimerSample.stop(meterRegistry.timer("webhook.lowlane.ack.latency"));
+                processingSample.stop(meterRegistry.timer("webhook.lowlane.worker.processing", "outcome", "success"));
             } catch (InvalidFormatException | SerializationException | DeserializationException e) {
-                log.error("Failed to de/serialize event payload: {}", e.getLocalizedMessage());
-
-                dlqService.save(event, "Serialization error: " + e.getLocalizedMessage());
-
-                ackTimerSample.stop(meterRegistry.timer("webhook.ack.latency"));
-                processingSample.stop(meterRegistry.timer("webhook.worker.processing", "outcome", "serialization_error"));
+                log.error("Failed to de/serialize low-lane event payload: {}", e.getLocalizedMessage());
+                dlqService.save(event, "Serialization error in low-lane: " + e.getLocalizedMessage());
+                ackTimerSample.stop(meterRegistry.timer("webhook.lowlane.ack.latency"));
+                processingSample.stop(meterRegistry.timer("webhook.lowlane.worker.processing", "outcome", "serialization_error"));
             } catch (Exception e) {
-                log.error("Unexpected error processing event {} from topic {}: {}", event.getEventId(), topic, e.getLocalizedMessage());
-
+                log.error("Error processing low-lane event {}: {}", event.getEventId(), e.getLocalizedMessage());
                 retryCounter.increment();
-                ackTimerSample.stop(meterRegistry.timer("webhook.ack.latency"));
-                processingSample.stop(meterRegistry.timer("webhook.worker.processing", "outcome", "failure"));
-                throw new RuntimeException("Unexpected error processing event: " + e.getLocalizedMessage());
+                ackTimerSample.stop(meterRegistry.timer("webhook.lowlane.ack.latency"));
+                processingSample.stop(meterRegistry.timer("webhook.lowlane.worker.processing", "outcome", "failure"));
+                throw new RuntimeException("Low-lane processing failed: " + e.getLocalizedMessage());
             } finally {
                 ack.acknowledge();
             }
@@ -138,7 +141,7 @@ public class EventConsumer {
 
     @DltHandler
     public void handleFailedEvents(EventPayload event, @Header(KafkaHeaders.RECEIVED_TOPIC) String topic) {
-        log.error("Event {} failed all retries, sending failure event to DB from topic {}", event.getEventId(), topic);
-        dlqService.save(event, "Event processing failed " + event.getEventId());
+        log.error("Low-lane event {} failed all retries, sending failure event to DB from topic {}", event.getEventId(), topic);
+        dlqService.save(event, "Low-lane event processing failed " + event.getEventId());
     }
 }

@@ -14,6 +14,7 @@ sleep 10
 
 echo "Create topics events with partitions and replicas"
 docker-compose exec kafka kafka-topics --create --bootstrap-server localhost:9092 --topic events --partitions 2 --replication-factor 1
+docker-compose exec kafka kafka-topics --create --bootstrap-server localhost:9092 --topic events-low --partitions 2 --replication-factor 1
 
 # Update 
 # docker compose exec kafka kafka-topics --alter --bootstrap-server localhost:9092 --topic events --partitions 2 --replication-factor 1

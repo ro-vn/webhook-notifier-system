@@ -68,7 +68,7 @@ Failed criteria for delivery:
 ### Full picture
 ![Webhook Notifier System](./webhook-notifier.png)
 
-View full picture [here](https://excalidraw.com/#json=HFYfow4VHvCZDaQLXE10m,0qtJM49hiAlU7a2MsVEk6A)
+View full picture [here](https://excalidraw.com/#json=KPbpLea9pCKX9iUaqZkML,2r1c7OddPQRsVGgmr8oY9Q)
 
 ### High-level flow
 ```mermaid

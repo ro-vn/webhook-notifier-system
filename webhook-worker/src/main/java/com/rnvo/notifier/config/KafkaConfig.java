@@ -11,11 +11,18 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.apache.kafka.common.serialization.StringSerializer;
+import org.springframework.kafka.support.serializer.JsonSerializer;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.apache.kafka.clients.consumer.ConsumerConfig.*;
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 
 /**
  * Kafka consumer configuration.
@@ -36,13 +43,13 @@ public class KafkaConfig {
     @Bean
     public ConsumerFactory<String, EventPayload> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
-        props.put(BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(AUTO_OFFSET_RESET_CONFIG, "earliest");
-        props.put(ENABLE_AUTO_COMMIT_CONFIG, false);
-        props.put(MAX_POLL_INTERVAL_MS_CONFIG, 300000); // 5 minutes
-        props.put(SESSION_TIMEOUT_MS_CONFIG, 30000);
-        props.put(KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
-        props.put(VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
+        props.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000); // 5 minutes
+        props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);
+        props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+        props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
 
         JsonDeserializer<EventPayload> deserializer = new JsonDeserializer<>(EventPayload.class);
         deserializer.setRemoveTypeHeaders(true);
@@ -66,5 +73,19 @@ public class KafkaConfig {
         factory.getContainerProperties().setListenerTaskExecutor(executor);
 
         return factory;
+    }
+
+    @Bean
+    public ProducerFactory<String, EventPayload> producerFactory() {
+        Map<String, Object> props = new HashMap<>();
+        props.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
+        return new DefaultKafkaProducerFactory<>(props);
+    }
+
+    @Bean
+    public KafkaTemplate<String, EventPayload> kafkaTemplate() {
+        return new KafkaTemplate<>(producerFactory());
     }
 }

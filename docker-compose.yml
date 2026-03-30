@@ -55,6 +55,8 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_DATA_REDIS_HOST=redis
       - EVENTS_PARTITIONS=2
+      - NOTIFIER_FAIRNESS_INTERVAL_SECONDS=1
+      - NOTIFIER_FAIRNESS_LIMIT=100
 
   publisher:
     build: ./publisher
@@ -62,8 +64,8 @@ services:
       - kafka
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - PUBLISH_RATE_PER_SEC=1000
-      - WHALE_ENABLED=true
+      - PUBLISHER_RATE_PER_SECONDS=100
+      - PUBLISHER_WHALE_ENABLED=true
 
   prometheus:
     image: prom/prometheus:latest

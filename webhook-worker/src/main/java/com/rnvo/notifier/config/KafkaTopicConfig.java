@@ -30,8 +30,16 @@ public class KafkaTopicConfig {
     }
 
     @Bean
-    public NewTopic eventTopic() {
+    public NewTopic mainEventTopic() {
         return TopicBuilder.name("events")
+                .partitions(eventPartitions)
+                .replicas(eventPartitions)
+                .build();
+    }
+
+    @Bean
+    public NewTopic lowEventTopic() {
+        return TopicBuilder.name("events-low")
                 .partitions(eventPartitions)
                 .replicas(eventPartitions)
                 .build();

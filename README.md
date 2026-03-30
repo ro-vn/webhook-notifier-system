@@ -6,6 +6,7 @@ A high-performance, fault-tolerant, and fair webhook delivery system built with 
 
 - **Java 21 Virtual Threads**: High-concurrency event dispatching with minimal memory overhead.
 - **Reliable Retries**: Ensuring persistence across worker failures with automatically configured retry topics by Spring Kafka with exponential backoff. Dead-letter queue for failed events.
+- **Fairness**: Fairness Enforcer to prevent "whale" accounts from starving other accounts. Redis-based limiter to limit the number of events per account per second. Put exceeding events to "low lane" topic to be processed later.
 - **Horizontal Scalability**: Stateless workers that can be scaled independently to handle varying loads.
 - **Observability**: Real-time monitoring with Prometheus and Grafana dashboards for throughput, latency, and DLQ health.
 
@@ -96,10 +97,11 @@ The system includes pre-configured Grafana dashboards to monitor performance:
 
 #### Webhook worker
 - Adjust number of worker via scripting above (Automatically create consumer group based on HOSTNAME, but due to resource limitation, we only able to create 1 broker, so partitions and replicas are limited as well)
+- Adjust fairness interval and limit via environment variable `NOTIFIER_FAIRNESS_INTERVAL_SECONDS` and `NOTIFIER_FAIRNESS_LIMIT`
 
 #### Publisher
-- Adjust publish rate via environment variable `PUBLISH_RATE_PER_SEC`
-- Enable/disable whale accounts via environment variable `WHALE_ENABLED`
+- Adjust publish rate via environment variable `PUBLISHER_RATE_PER_SECONDS`
+- Enable/disable whale accounts via environment variable `PUBLISHER_WHALE_ENABLED`
 
 #### Receiver
 - Adjust failure rate of receiver via environment variable `FAILURE_RATE`

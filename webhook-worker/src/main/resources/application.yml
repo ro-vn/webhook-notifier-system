@@ -60,3 +60,8 @@ logging:
     org.springframework: INFO
     com.rnvo.notifier: INFO
     resilience4j: INFO
+
+app:
+  fairness:
+    limit: ${NOTIFIER_FAIRNESS_LIMIT:100}
+    interval-seconds: ${NOTIFIER_FAIRNESS_INTERVAL_SECONDS:false}
