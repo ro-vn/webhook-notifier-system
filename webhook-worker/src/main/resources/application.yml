@@ -18,11 +18,12 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:9092,localhost:9093
     consumer:
-      group-id: webhook-workers
+      group-id: webhook-workers-${HOSTNAME}
       auto-offset-reset: earliest
       enable-auto-commit: false
+      concurrency: 2
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
@@ -31,29 +32,31 @@ spring:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     listener:
-      ack-mode: manual_immediate
+      ack-mode: manual
   data:
     redis:
       host: localhost
       port: 6379
 
-fairness:
-  rate-limit: 5000
-
-resilience4j:
-  retry:
-    instances:
-      webhookRetry:
-        maxAttempts: 3
-        waitDuration: 2s
-        enableExponentialBackoff: true
-        exponentialBackoffMultiplier: 2
-        retryExceptions:
-          - com.rnvo.notifier.service.ServerErrorException
-          - java.net.http.HttpTimeoutException
-          - java.io.IOException
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus,info,metrics
+  metrics:
+    tags:
+      application: webhook-worker
+    distribution:
+      percentiles-histogram:
+        webhook: true
+      percentiles:
+        webhook: 0.5, 0.95, 0.99, 0.999
+      slos:
+        webhook: 100ms, 500ms, 1s, 5s
 
 logging:
   level:
+    root: INFO
+    org.springframework: INFO
     com.rnvo.notifier: INFO
     resilience4j: INFO

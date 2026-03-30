@@ -19,7 +19,7 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-
+  
   postgres:
     image: postgres:15-alpine
     ports:
@@ -41,7 +41,7 @@ services:
     ports:
       - "8081:8081"
     environment:
-      - FAILURE_RATE=0.05
+      - FAILURE_RATE=0.01
 
   webhook-worker:
     build: ./webhook-worker
@@ -54,7 +54,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/webhooks
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - SPRING_DATA_REDIS_HOST=redis
-      - FAIRNESS_RATE_LIMIT=5000
+      - EVENTS_PARTITIONS=2
 
   publisher:
     build: ./publisher
@@ -62,3 +62,40 @@ services:
       - kafka
     environment:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+      - PUBLISH_RATE_PER_SEC=1000
+      - WHALE_ENABLED=true
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - default
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    networks:
+      - default
+
+  kafka-exporter:
+    image: danielqsj/kafka-exporter:latest
+    container_name: kafka-exporter
+    command:
+      - --kafka.server=kafka:29092
+    ports:
+      - "9308:9308"
+    depends_on:
+      - kafka

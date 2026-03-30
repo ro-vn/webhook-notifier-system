@@ -30,16 +30,17 @@ public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
 
-    @Value("${spring.kafka.listener.concurrency:3}")
+    @Value("${spring.kafka.listener.concurrency:2}")
     private int listenerConcurrency;
 
     @Bean
     public ConsumerFactory<String, EventPayload> consumerFactory() {
         Map<String, Object> props = new HashMap<>();
         props.put(BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
-        props.put(GROUP_ID_CONFIG, "webhook-workers");
         props.put(AUTO_OFFSET_RESET_CONFIG, "earliest");
         props.put(ENABLE_AUTO_COMMIT_CONFIG, false);
+        props.put(MAX_POLL_INTERVAL_MS_CONFIG, 300000); // 5 minutes
+        props.put(SESSION_TIMEOUT_MS_CONFIG, 30000);
         props.put(KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer.class);
 
@@ -56,7 +57,9 @@ public class KafkaConfig {
         ConcurrentKafkaListenerContainerFactory<String, EventPayload> factory =
                 new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
+        factory.setConcurrency(listenerConcurrency);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL_IMMEDIATE);
+        factory.getContainerProperties().setPollTimeout(100);
 
         SimpleAsyncTaskExecutor executor = new SimpleAsyncTaskExecutor("vt-kafka-");
         executor.setVirtualThreads(true);

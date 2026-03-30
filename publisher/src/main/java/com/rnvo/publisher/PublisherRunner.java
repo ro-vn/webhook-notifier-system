@@ -3,28 +3,41 @@ package com.rnvo.publisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Simulates upstream systems by publishing events to Kafka.
- * Includes a "whale" burst mode that fires 100,000 events for a single account
- * interspersed with events from small accounts — used to stress-test fairness.
+ * Simulates upstream systems by publishing events to Kafka in an open-loop manner.
+ * Supports "peak capacity" testing and "whale account" fairness scenarios.
  */
 @Component
 public class PublisherRunner implements CommandLineRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PublisherRunner.class);
     private static final String TOPIC = "events";
-    private static final int WHALE_BURST_SIZE = 100_000;
-    private static final int SMALL_ACCOUNT_INTERVAL = 100; // every Nth whale event
+
+    @Value("${PUBLISH_RATE_PER_SEC:10}")
+    private int publishRatePerSec;
+
+    @Value("${WHALE_ENABLED:false}")
+    private boolean whaleEnabled;
+
+    @Value("${WHALE_ACCOUNT_ID:whale_account_1}")
+    private String whaleAccountId;
 
     private final KafkaTemplate<String, String> kafkaTemplate;
     private final ObjectMapper objectMapper;
+    private final AtomicLong smallAccountCounter = new AtomicLong(0);
+    private final AtomicLong whaleAccountCounter = new AtomicLong(0);
 
     public PublisherRunner(KafkaTemplate<String, String> kafkaTemplate, ObjectMapper objectMapper) {
         this.kafkaTemplate = kafkaTemplate;
@@ -32,34 +45,53 @@ public class PublisherRunner implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) throws Exception {
-        log.info("Starting event publication — {} whale events + small account events",
-                WHALE_BURST_SIZE);
+    public void run(String... args) {
+        log.info("Starting Open-Loop Publisher: Rate={} msgs/sec, WhaleMode={}", publishRatePerSec, whaleEnabled);
 
-        int smallAccountCount = 0;
+        try (ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor()) {
+            long delayMicros = 1_000_000L / publishRatePerSec;
+            executor.scheduleAtFixedRate(this::publishNext, 0, Math.max(1, delayMicros), TimeUnit.MICROSECONDS);
 
-        for (int i = 0; i < WHALE_BURST_SIZE; i++) {
-            // Whale event
-            String whalePayload = buildPayload("whale_account_1", "subscriber.created", i);
-            kafkaTemplate.send(TOPIC, "whale_account_1", whalePayload);
-
-            // Intersperse small account events
-            if (i % SMALL_ACCOUNT_INTERVAL == 0) {
-                String smallPayload = buildPayload("small_account_1", "subscriber.created", smallAccountCount++);
-                kafkaTemplate.send(TOPIC, "small_account_1", smallPayload);
-            }
-
-            if (i % 10_000 == 0) {
-                log.info("Published {} whale events, {} small account events", i, smallAccountCount);
-            }
+            Runtime.getRuntime().addShutdownHook(new Thread(executor::shutdown));
         }
 
-        log.info("Publication complete: {} whale events, {} small account events",
-                WHALE_BURST_SIZE, smallAccountCount);
+    }
+
+    private void publishNext() {
+        try {
+            if (whaleEnabled) {
+                // In Whale mode, we mostly publish for the whale but trickle some small accounts
+                // Let's say 90% whale, 10% small accounts
+                if (Math.random() < 0.9) {
+                    long seq = whaleAccountCounter.getAndIncrement();
+                    String payload = buildPayload(whaleAccountId, "subscriber.created", (int) seq);
+                    kafkaTemplate.send(TOPIC, whaleAccountId, payload);
+                } else {
+                    String accountId = "small_account_" + (smallAccountCounter.get() % 100);
+                    long seq = smallAccountCounter.getAndIncrement();
+                    String payload = buildPayload(accountId, "subscriber.created", (int) seq);
+                    kafkaTemplate.send(TOPIC, accountId, payload);
+                }
+            } else {
+                // Balanced load across many accounts
+                String accountId = "small_account_" + (smallAccountCounter.get() % 100);
+                long seq = smallAccountCounter.getAndIncrement();
+                String payload = buildPayload(accountId, "subscriber.created", (int) seq);
+                kafkaTemplate.send(TOPIC, accountId, payload);
+            }
+
+            long total = whaleAccountCounter.get() + smallAccountCounter.get();
+            if (total % 1000 == 0) {
+                log.info("Total published: Whale={}, SmallAccounts={}", whaleAccountCounter.get(), smallAccountCounter.get());
+            }
+        } catch (Exception e) {
+            log.error("Failed to publish event: {}", e.getMessage());
+        }
     }
 
     private String buildPayload(String accountId, String eventType, int sequence) throws Exception {
         Map<String, Object> payload = new HashMap<>();
+        payload.put("eventId", "ev_%d".formatted(sequence));
         payload.put("accountId", accountId);
         payload.put("eventType", eventType);
         payload.put("timestamp", System.currentTimeMillis());

@@ -17,6 +17,7 @@ resilience4j = "2.2.0"
 spring-boot-starter = { module = "org.springframework.boot:spring-boot-starter", version.ref = "springBoot" }
 spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "springBoot" }
 spring-boot-starter-aop = { module = "org.springframework.boot:spring-boot-starter-aop", version.ref = "springBoot" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator", version.ref = "springBoot" }
 spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa", version.ref = "springBoot" }
 spring-boot-starter-data-redis = { module = "org.springframework.boot:spring-boot-starter-data-redis", version.ref = "springBoot" }
 spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "springBoot" }
@@ -29,6 +30,7 @@ spring-kafka = { module = "org.springframework.kafka:spring-kafka", version.ref 
 spring-kafka-test = { module = "org.springframework.kafka:spring-kafka-test"}
 caffeine = { module = "com.github.ben-manes.caffeine:caffeine"}
 postgresql = { module = "org.postgresql:postgresql"}
+micrometer-registry-prometheus = {module = "io.micrometer:micrometer-registry-prometheus"}
 
 [plugins]
 springBoot = { id = "org.springframework.boot", version.ref = "springBoot" }

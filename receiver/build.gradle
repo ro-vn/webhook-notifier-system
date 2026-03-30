@@ -6,6 +6,11 @@ plugins {
     id 'buildlogic.spring-web-conventions'
 }
 
+dependencies {
+    implementation libs.spring.boot.starter.actuator
+    runtimeOnly libs.micrometer.registry.prometheus
+}
+
 application {
     mainClass = 'com.rnvo.receiver.ReceiverApplication'
 }

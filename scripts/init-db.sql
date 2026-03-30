@@ -26,4 +26,7 @@ INSERT INTO webhook_configs (account_id, event_type, target_url)
 VALUES ('whale_account_1', 'subscriber.created', 'http://receiver:8081/api/webhook');
 
 INSERT INTO webhook_configs (account_id, event_type, target_url)
-VALUES ('small_account_1', 'subscriber.created', 'http://receiver:8081/api/webhook');
+SELECT 'small_account_' || i,
+       'subscriber.created',
+       'http://receiver:8081/api/webhook'
+FROM generate_series(1, 100) AS i;

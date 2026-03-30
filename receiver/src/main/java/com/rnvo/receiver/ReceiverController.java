@@ -19,7 +19,7 @@ public class ReceiverController {
 
     private static final Logger log = LoggerFactory.getLogger(ReceiverController.class);
 
-    @Value("${FAILURE_RATE:0.05}")
+    @Value("${FAILURE_RATE:0.1}")
     private double failureRate;
 
     private final AtomicLong successCount = new AtomicLong(0);

@@ -1,10 +1,16 @@
 spring:
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:9092,localhost:9093
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-
+      client-id: publisher
 logging:
   level:
     com.rnvo.publisher: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: prometheus

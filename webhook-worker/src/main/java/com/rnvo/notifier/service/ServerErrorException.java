@@ -4,7 +4,6 @@ import lombok.Getter;
 
 /**
  * Thrown when the target webhook endpoint returns a server error (5xx).
- * Used as a signal for Resilience4j retry.
  */
 @Getter
 public class ServerErrorException extends RuntimeException {

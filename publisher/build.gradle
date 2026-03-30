@@ -10,6 +10,8 @@ dependencies {
     implementation libs.spring.kafka
     implementation libs.jackson.databind
 
+    implementation libs.spring.boot.starter.actuator
+    runtimeOnly libs.micrometer.registry.prometheus
     testImplementation libs.spring.kafka.test
 }
 

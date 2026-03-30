@@ -13,15 +13,19 @@ import java.util.Map;
 @Setter
 public class EventPayload {
 
+    private String eventId;
     private String accountId;
     private String eventType;
     private Map<String, Object> data;
     private long timestamp;
+    private int retryCount;
+    private long nextAttemptAt;
 
     public EventPayload() {
     }
 
-    public EventPayload(String accountId, String eventType, Map<String, Object> data) {
+    public EventPayload(String eventId, String accountId, String eventType, Map<String, Object> data) {
+        this.eventId = eventId;
         this.accountId = accountId;
         this.eventType = eventType;
         this.data = data;

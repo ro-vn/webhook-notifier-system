@@ -20,7 +20,8 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class DlqServiceTest {
 
-    @Mock private DlqRecordRepository repository;
+    @Mock
+    private DlqRecordRepository repository;
 
     private DlqService dlqService;
 
@@ -32,7 +33,7 @@ class DlqServiceTest {
     @Test
     @DisplayName("Saves event to DLQ with correct fields")
     void shouldSaveToDlq() {
-        EventPayload event = new EventPayload("account_1", "subscriber.created",
+        EventPayload event = new EventPayload("ev_1", "account_1", "subscriber.created",
                 Map.of("email", "test@example.com"));
 
         dlqService.save(event, "All retries exhausted");
